@@ -91,31 +91,66 @@ const getFuncName = (document: vscode.TextDocument, range: vscode.Range) => {
   return name.substring(0, name.indexOf('(')) 
 }
 
-class HexDocumentColorProvider implements vscode.DocumentColorProvider {
+
+
+
+export class HexDocumentColorProvider implements vscode.DocumentColorProvider {
+  private static readonly VISIBLE_RANGE_EXTENSION = 100; // 可见范围上下各扩展100行
+  private changeEmitter = new vscode.EventEmitter<void>();
+
+  public get onDidChangeColorProvider(): vscode.Event<void> {
+    return this.changeEmitter.event;
+  }
+
+  public triggerUpdate() {
+    this.changeEmitter.fire();
+  }
+
   /// 颜色改变到文档
   provideDocumentColors(document: vscode.TextDocument, token: vscode.CancellationToken): vscode.ProviderResult<vscode.ColorInformation[]> {
-    let lineCount = document.lineCount;
     let colors = new Array<vscode.ColorInformation>();
     let colorReg = new RegExp(/\|[cC][0-9a-fA-F]{8}/, "g");
-    for (let i = 0; i < lineCount; i++) {
-      let lineText = document.lineAt(i).text;
-      let colotSet = lineText.match(colorReg);
-      let posstion = 0;
-      if (colotSet) {
-        colotSet.forEach(x => {
-          posstion = lineText.indexOf(x, posstion);
-          let range = new vscode.Range(i, posstion, i, posstion + x.length);
-          let a = numberFormat( lineText.substring(posstion + 2, posstion + 2 + 2),16) / 255;
-          let r = numberFormat( lineText.substring(posstion + 4, posstion + 4 + 2),16) / 255;
-          let g = numberFormat( lineText.substring(posstion + 6, posstion + 6 + 2),16) / 255;
-          let b = numberFormat( lineText.substring(posstion + 8, posstion + 8 + 2),16) / 255;
-          colors.push(new vscode.ColorInformation(range, new vscode.Color(r, g, b, a)));
-          posstion += x.length;
-        });
+    console.log("triggerUpdate");
+
+    // 根据文档 URI 找到对应的编辑器
+    const editor = vscode.window.visibleTextEditors.find(e => e.document.uri.toString() === document.uri.toString());
+    const visibleRanges = editor?.visibleRanges || [];
+    if (visibleRanges.length === 0) {
+      return colors; // 如果没有可见范围，返回空数组
+    }
+
+    // 扩展可见范围
+    const extendedRanges = visibleRanges.map(range => {
+      const startLine = Math.max(0, range.start.line - HexDocumentColorProvider.VISIBLE_RANGE_EXTENSION);
+      const endLine = Math.min(document.lineCount - 1, range.end.line + HexDocumentColorProvider.VISIBLE_RANGE_EXTENSION);
+      return new vscode.Range(startLine, 0, endLine, Number.MAX_SAFE_INTEGER);
+    });
+
+    // 只处理扩展范围内的行
+    for (const range of extendedRanges) {
+      for (let i = range.start.line; i <= range.end.line; i++) {
+        let lineText = document.lineAt(i).text;
+        let colotSet = lineText.match(colorReg);
+        let position = 0;
+        if (colotSet) {
+          colotSet.forEach(x => {
+            position = lineText.indexOf(x, position);
+            let colorRange = new vscode.Range(i, position, i, position + x.length);
+            let a = numberFormat(lineText.substring(position + 2, position + 4), 16) / 255;
+            let r = numberFormat(lineText.substring(position + 4, position + 6), 16) / 255;
+            let g = numberFormat(lineText.substring(position + 6, position + 8), 16) / 255;
+            let b = numberFormat(lineText.substring(position + 8, position + 10), 16) / 255;
+            colors.push(new vscode.ColorInformation(colorRange, new vscode.Color(r, g, b, a)));
+            position += x.length;
+          });
+        }
       }
     }
+
     return colors;
   }
+
+
   /// 文档改变到颜色
   provideColorPresentations(color: vscode.Color, context: { document: vscode.TextDocument; range: vscode.Range; }, token: vscode.CancellationToken): vscode.ProviderResult<vscode.ColorPresentation[]> {
     let r = color.red;
@@ -132,12 +167,13 @@ class HexDocumentColorProvider implements vscode.DocumentColorProvider {
       }${
       documentText.substring(10)
       }`)];
-
   }
 }
 
 
-class CssDocumentColorProvider implements vscode.DocumentColorProvider {
+
+
+export class CssDocumentColorProvider implements vscode.DocumentColorProvider {
   /// 颜色改变到文档
   provideDocumentColors(document: vscode.TextDocument, token: vscode.CancellationToken): vscode.ProviderResult<vscode.ColorInformation[]> {
     let lineCount = document.lineCount;
@@ -175,7 +211,7 @@ class CssDocumentColorProvider implements vscode.DocumentColorProvider {
 }
 
 
-class ColorDocumentColorProvider implements vscode.DocumentColorProvider {
+export class ColorDocumentColorProvider implements vscode.DocumentColorProvider {
   /// 颜色改变到文档
   provideDocumentColors(document: vscode.TextDocument, token: vscode.CancellationToken): vscode.ProviderResult<vscode.ColorInformation[]> {
     let lineCount = document.lineCount;
@@ -218,7 +254,7 @@ class ColorDocumentColorProvider implements vscode.DocumentColorProvider {
   }
 }
 
-class Color3DocumentColorProvider implements vscode.DocumentColorProvider {
+export class Color3DocumentColorProvider implements vscode.DocumentColorProvider {
   /// 颜色改变到文档
   provideDocumentColors(document: vscode.TextDocument, token: vscode.CancellationToken): vscode.ProviderResult<vscode.ColorInformation[]> {
     let lineCount = document.lineCount;
@@ -260,7 +296,7 @@ class Color3DocumentColorProvider implements vscode.DocumentColorProvider {
   }
 }
 
-class RGBADocumentColorProvider implements vscode.DocumentColorProvider {
+export class RGBADocumentColorProvider implements vscode.DocumentColorProvider {
   /// 颜色改变到文档
   provideDocumentColors(document: vscode.TextDocument, token: vscode.CancellationToken): vscode.ProviderResult<vscode.ColorInformation[]> {
     let lineCount = document.lineCount;
@@ -304,7 +340,7 @@ class RGBADocumentColorProvider implements vscode.DocumentColorProvider {
 }
 
 
-class RGBDocumentColorProvider implements vscode.DocumentColorProvider {
+export class RGBDocumentColorProvider implements vscode.DocumentColorProvider {
   /// 颜色改变到文档
   provideDocumentColors(document: vscode.TextDocument, token: vscode.CancellationToken): vscode.ProviderResult<vscode.ColorInformation[]> {
     let lineCount = document.lineCount;
@@ -346,22 +382,3 @@ class RGBDocumentColorProvider implements vscode.DocumentColorProvider {
   }
 }
 
-const hexSupportLanguages = ["jass","lua","ini","vjass","zinc","fdf","json",'js',"javascript","typescript"];
-const colorSupportLanguages = ["jass","lua","vjass","zinc",'js',"javascript","typescript"];
-const cssSupportLanguages = ["css","html","xml","json",'js',"javascript","typescript","lua","ini"];
-const rgbaSupportLanguages = ["css","html",'js',"javascript","typescript"];
-
-hexSupportLanguages.forEach(language=>{
-  vscode.languages.registerColorProvider(language, new HexDocumentColorProvider);
-});
-colorSupportLanguages.forEach(language=>{
-  vscode.languages.registerColorProvider(language, new ColorDocumentColorProvider);
-  vscode.languages.registerColorProvider(language, new Color3DocumentColorProvider);
-});
-cssSupportLanguages.forEach(language=>{
-  vscode.languages.registerColorProvider(language, new CssDocumentColorProvider);
-});
-rgbaSupportLanguages.forEach(language=>{
-  vscode.languages.registerColorProvider(language, new RGBADocumentColorProvider);
-  vscode.languages.registerColorProvider(language, new RGBDocumentColorProvider);
-});
