@@ -95,7 +95,7 @@ const getFuncName = (document: vscode.TextDocument, range: vscode.Range) => {
 
 
 export class HexDocumentColorProvider implements vscode.DocumentColorProvider {
-  private static readonly VISIBLE_RANGE_EXTENSION = 100; // 可见范围上下各扩展100行
+  private static readonly VISIBLE_RANGE_EXTENSION = 1000; // 可见范围上下各扩展1000行
   private changeEmitter = new vscode.EventEmitter<void>();
 
   public get onDidChangeColorProvider(): vscode.Event<void> {
